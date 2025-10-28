@@ -8,13 +8,17 @@ import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
-import { createServer as createViteServer } from "vite";
-import viteConfig from "../../vite.config";
 
 /**
- * 開発時: Vite のミドルウェアを Express に組み込む
+ * 開発時だけ Vite を動的 import して組み込む
+ * これにより本番バンドルから vite / vite.config を完全に排除できる
  */
 export async function setupVite(app: Application, server: Server) {
+  const { createServer: createViteServer } = await import("vite");
+  // vite.config は default / named どちらでも拾えるように
+  const viteConfigMod: any = await import("../../vite.config");
+  const viteConfig = viteConfigMod.default ?? viteConfigMod;
+
   const serverOptions = {
     middlewareMode: true as const,
     hmr: { server },
@@ -35,7 +39,7 @@ export async function setupVite(app: Application, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        // 実行時は src 側（ts）を想定：dev 専用
+        // dev 時は src 側を参照
         import.meta.dirname,
         "../..",
         "client",
@@ -52,17 +56,16 @@ export async function setupVite(app: Application, server: Server) {
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
+      // @ts-expect-error: vite 型は dev 専用
+      vite.ssrFixStacktrace(e);
+      next(e as Error);
     }
   });
 }
 
 /**
- * 本番: 事前ビルド済みの静的ファイルを配信
- * - サーバは dist/server/index.mjs として配置
- * - 静的は dist/public 配下に配置
- *   ⇒ 実行時の import.meta.dirname は dist/server を指すため、../public を参照
+ * 本番は dist/public 配下のみを配信（vite には一切触れない）
+ * dist/server/index.mjs から実行されるため、public は 1 つ上のディレクトリ
  */
 export function serveStatic(app: Application) {
   const distPath =
