@@ -6,7 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { serveStatic } from "./vite"; // ← ここは静的配信だけを静的 import
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -27,8 +27,7 @@ async function findAvailablePort(startPort = 3000): Promise<number> {
 }
 
 /**
- * ローカル開発では express サーバを起動
- * Vercel 実行時（Serverless）は export default handler が使われる
+ * ローカル開発時のみ起動（Vite を動的 import）
  */
 async function startLocalServer() {
   const app: Application = express();
@@ -48,6 +47,7 @@ async function startLocalServer() {
   );
 
   if (process.env.NODE_ENV === "development") {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -64,11 +64,13 @@ async function startLocalServer() {
   });
 }
 
-/** Vercel の Serverless 入口（ここだけ Vercel 型を使う） */
+/** Vercel Serverless 入口（本番では Vite に触れない） */
 const serverlessApp: Application = express();
 serverlessApp.use(express.json({ limit: "50mb" }));
 serverlessApp.use(express.urlencoded({ limit: "50mb", extended: true }));
+
 registerOAuthRoutes(serverlessApp);
+
 serverlessApp.use(
   "/api/trpc",
   createExpressMiddleware({
@@ -76,15 +78,15 @@ serverlessApp.use(
     createContext,
   })
 );
-// Serverless 環境でも静的配信を有効化
+
+// 本番は静的ファイルのみ
 serveStatic(serverlessApp);
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return (serverlessApp as any)(req, res);
 }
 
-// ローカル開発用（node dist/server/index.mjs を直接実行したとき）
+// ローカル開発用（直接 node 実行時のみ）
 if (process.env.VERCEL !== "1" && process.env.NODE_ENV !== "production") {
-  // 開発向けのみ起動（本番は Vercel handler が使われる）
   startLocalServer().catch(console.error);
 }
