@@ -70,14 +70,44 @@ function Redirect(props: { to: string }) {
 }
 
 function LoginPage() {
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
   const handleLogin = () => {
     window.location.href = "/api/oauth/login";
+  };
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.ok) {
+      window.location.href = "/";
+    } else {
+      const j = await res.json().catch(() => ({} as any));
+      setError(j?.error ?? "ログインに失敗しました");
+    }
   };
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
       <div style={{ width: 360, display: "grid", gap: 16 }}>
         <h1>ログイン</h1>
         <p>テレアポ管理にサインインしてください。</p>
+        <form onSubmit={submit} style={{ display: "grid", gap: 8 }}>
+          <label>
+            メールアドレス
+            <input value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label>
+            パスワード
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          {error ? <div style={{ color: "#dc2626" }}>{error}</div> : null}
+          <button type="submit" style={{ padding: "10px 14px" }}>メール/パスワードでログイン</button>
+        </form>
         <button onClick={handleLogin} style={{ padding: "10px 14px" }}>
           OAuthでログイン
         </button>

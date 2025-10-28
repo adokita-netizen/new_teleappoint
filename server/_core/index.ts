@@ -10,6 +10,8 @@ import { createContext } from "./context";
 import { serveStatic } from "./vite";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sdk } from "./sdk";
+import { COOKIE_NAME } from "@shared/const";
+import { getSessionCookieOptions } from "./cookies";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -54,6 +56,32 @@ async function startLocalServer() {
   // 認証状態の確認
   app.get("/api/auth/me", (req, res) => {
     res.json((req as any).user ?? null);
+  });
+
+  // ログアウト（Cookie削除）
+  app.get("/api/auth/logout", (req, res) => {
+    const cookieOptions = getSessionCookieOptions(req as any);
+    res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+    res.status(200).json({ success: true });
+  });
+
+  // ローカルログイン（メール/パスワード）
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body || {};
+      if (!email || !password) return res.status(400).json({ error: "email and password are required" });
+      const user = await (await import("../db")).getUserByEmail(email);
+      if (!user) return res.status(401).json({ error: "Invalid credentials" });
+      const ok = (user as any).passwordHash === `plain:${password}`; // 実運用はハッシュ比較
+      if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+      const sessionToken = await sdk.createSessionToken((user as any).openId, { name: (user as any).name || "" });
+      const cookieOptions = getSessionCookieOptions(req as any);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 1000 * 60 * 60 * 24 * 365 });
+      return res.status(200).json({ success: true });
+    } catch (e) {
+      console.error("/api/auth/login error", e);
+      return res.status(500).json({ error: "Login failed" });
+    }
   });
 
   registerOAuthRoutes(app);
@@ -104,6 +132,30 @@ serverlessApp.use(async (req, _res, next) => {
 
 serverlessApp.get("/api/auth/me", (req, res) => {
   res.json((req as any).user ?? null);
+});
+
+serverlessApp.get("/api/auth/logout", (req, res) => {
+  const cookieOptions = getSessionCookieOptions(req as any);
+  res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+  res.status(200).json({ success: true });
+});
+
+serverlessApp.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ error: "email and password are required" });
+    const user = await (await import("../db")).getUserByEmail(email);
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    const ok = (user as any).passwordHash === `plain:${password}`;
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+    const sessionToken = await sdk.createSessionToken((user as any).openId, { name: (user as any).name || "" });
+    const cookieOptions = getSessionCookieOptions(req as any);
+    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 1000 * 60 * 60 * 24 * 365 });
+    return res.status(200).json({ success: true });
+  } catch (e) {
+    console.error("/api/auth/login error", e);
+    return res.status(500).json({ error: "Login failed" });
+  }
 });
 
 registerOAuthRoutes(serverlessApp);
