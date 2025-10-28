@@ -1,13 +1,12 @@
-import type { CookieOptions, Request } from "express";
-
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+import { type CookieOptions, type Request, type Response } from "express";
 
 function isIpAddress(host: string) {
-  // Basic IPv4 check and IPv6 presence detection.
+  // IPv4 / IPv6 の簡易判定
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
   return host.includes(":");
 }
 
+/** x-forwarded-proto 等を見て https か判定 */
 function isSecureRequest(req: Request) {
   if (req.protocol === "https") return true;
 
@@ -18,31 +17,45 @@ function isSecureRequest(req: Request) {
     ? forwardedProto
     : forwardedProto.split(",");
 
-  return protoList.some(proto => proto.trim().toLowerCase() === "https");
+  return protoList.some((p) => p.trim().toLowerCase() === "https");
 }
 
-export function getSessionCookieOptions(
-  req: Request
-): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
+/**
+ * セッション Cookie の共通オプションを返す
+ * - domain は環境により可変のため付与しない（必要なら呼び出し側で上書き）
+ */
+export function getSessionCookieOptions(req: Request): CookieOptions {
+  // 必要であれば domain を計算して付ける場合の雛形（無効化中）
   // const hostname = req.hostname;
   // const shouldSetDomain =
   //   hostname &&
-  //   !LOCAL_HOSTS.has(hostname) &&
-  //   !isIpAddress(hostname) &&
   //   hostname !== "127.0.0.1" &&
-  //   hostname !== "::1";
+  //   hostname !== "::1" &&
+  //   !isIpAddress(hostname);
+  // const domain = shouldSetDomain && !hostname.startsWith(".")
+  //   ? `.${hostname}`
+  //   : shouldSetDomain
+  //   ? hostname
+  //   : undefined;
 
-  // const domain =
-  //   shouldSetDomain && !hostname.startsWith(".")
-  //     ? `.${hostname}`
-  //     : shouldSetDomain
-  //       ? hostname
-  //       : undefined;
+  const secure = isSecureRequest(req);
 
-  return {
+  const base: CookieOptions = {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: secure ? "none" : "lax", // cross-site 必要時は none（https 必須）
+    secure,
+    // ...(domain ? { domain } : {}),
   };
+
+  return base;
+}
+
+/** 明示的にクリアする補助関数（必要なら利用） */
+export function clearSessionCookie(
+  res: Response,
+  name: string,
+  base: CookieOptions
+) {
+  res.clearCookie(name, { ...base, maxAge: -1 });
 }
