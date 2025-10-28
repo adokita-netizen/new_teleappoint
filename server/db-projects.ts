@@ -63,7 +63,7 @@ export async function updateProject(id: number, data: Partial<any>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(projects).set(data).where(eq(projects.id, id));
+  await db.update(projects).set(data as any).where(eq(projects.id, id));
 }
 
 export async function deleteProject(id: number) {

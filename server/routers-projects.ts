@@ -77,6 +77,7 @@ export const projectsRouter = router({
         name: z.string().optional(),
         description: z.string().optional(),
         status: z.enum(["active", "archived", "inactive"]).optional(),
+        calendarUrl: z.string().url().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -101,8 +102,38 @@ export const projectsRouter = router({
         name: input.name,
         description: input.description,
         status: input.status,
+        calendarUrl: input.calendarUrl,
       });
 
+      return { success: true };
+    }),
+
+  // Set or update Google Calendar URL for project
+  setCalendarUrl: projectManagerProcedure
+    .input(
+      z.object({
+        projectId: z.number(),
+        calendarUrl: z.string().url(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const project = await dbProjects.getProjectById(input.projectId);
+      if (!project) {
+        throw new Error("Project not found");
+      }
+
+      const members = await dbProjects.getProjectMembers(input.projectId);
+      const currentMember = members.find((m: any) => m.userId === ctx.user.id);
+      const isOwner = currentMember?.role === "owner";
+      const isManager = currentMember?.role === "manager";
+      const isCreator = project.createdBy === ctx.user.id;
+      const isAdmin = ctx.user.role === "admin";
+
+      if (!(isAdmin || isOwner || isManager || isCreator)) {
+        throw new Error("Access denied");
+      }
+
+      await dbProjects.updateProject(input.projectId, { calendarUrl: input.calendarUrl });
       return { success: true };
     }),
 
