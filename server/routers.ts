@@ -36,7 +36,7 @@ export const appRouter = router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req as Request);
-      // ctx.res は tRPC の型上 any/unknown の可能性があるため Express へ明示キャスト
+      // tRPC の疎な型に合わせ、明示的に Express へキャスト
       (ctx.res as Response).clearCookie(COOKIE_NAME, {
         ...cookieOptions,
         maxAge: -1,
