@@ -2,10 +2,7 @@
   "version": 2,
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
-  "builds": [
-    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } },
-    { "src": "server/_core/index.ts", "use": "@vercel/node" }
-  ],
+  "outputDirectory": "dist/public",
   "routes": [
     { "src": "/api/(.*)", "dest": "server/_core/index.ts" },
     { "handle": "filesystem" },
