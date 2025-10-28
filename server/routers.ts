@@ -6,6 +6,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import type { Request, Response } from "express";
+import { projectsRouter, projectMembersRouter, projectListsRouter, projectCampaignsRouter } from "./routers-projects";
 
 // RBAC
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -31,6 +32,10 @@ const agentProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 export const appRouter = router({
   system: systemRouter,
+  projects: projectsRouter,
+  projectMembers: projectMembersRouter,
+  projectLists: projectListsRouter,
+  projectCampaigns: projectCampaignsRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

@@ -42,10 +42,10 @@ export const projectsRouter = router({
     return await dbProjects.getAllProjects();
   }),
 
-  // Get projects for current user
+  // Get projects for current user (full project objects)
   getMyProjects: protectedProcedure.query(async ({ ctx }) => {
-    const userProjects = await dbProjects.getUserProjects(ctx.user.id);
-    return userProjects;
+    const projects = await dbProjects.getProjectsByUser(ctx.user.id);
+    return projects;
   }),
 
   // Get project details
@@ -85,8 +85,15 @@ export const projectsRouter = router({
         throw new Error("Project not found");
       }
 
-      // Check if user is the creator or admin
-      if (project.createdBy !== ctx.user.id && ctx.user.role !== "admin") {
+      // Permission: admin OR project owner/creator OR manager member
+      const members = await dbProjects.getProjectMembers(input.projectId);
+      const currentMember = members.find((m: any) => m.userId === ctx.user.id);
+      const isOwner = currentMember?.role === "owner";
+      const isManager = currentMember?.role === "manager";
+      const isCreator = project.createdBy === ctx.user.id;
+      const isAdmin = ctx.user.role === "admin";
+
+      if (!(isAdmin || isOwner || isManager || isCreator)) {
         throw new Error("Access denied");
       }
 
