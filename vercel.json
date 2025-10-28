@@ -1,17 +1,13 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.mjs": {
-      "runtime": "nodejs20.x",
-      "memory": 256
-    }
-  },
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
   "builds": [
-    { "src": "dist/server/index.mjs", "use": "@vercel/node" },
-    { "src": "dist/public/**", "use": "@vercel/static" }
+    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } },
+    { "src": "server/_core/index.ts", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "dist/server/index.mjs" },
+    { "src": "/api/(.*)", "dest": "server/_core/index.ts" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "dist/public/index.html" }
   ]
