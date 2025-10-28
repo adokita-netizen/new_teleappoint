@@ -8,7 +8,7 @@ export type UserLike = {
 export type Context = {
   req: express.Request;
   res: express.Response;
-  user: UserLike;
+  user?: UserLike;
 };
 
 /** tRPC 用コンテキスト（ここで drizzle/schema を import しない） */
@@ -19,11 +19,6 @@ export async function createContext({
   req: express.Request;
   res: express.Response;
 }): Promise<Context> {
-  const user =
-    (req as any).user ??
-    ({
-      id: 0,
-      role: "viewer",
-    } as UserLike);
+  const user = (req as any).user as UserLike | undefined;
   return { req, res, user };
 }

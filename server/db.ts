@@ -18,6 +18,7 @@ import {
   users,
   activityLogs,
   operatorMetrics,
+  invitations,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -367,6 +368,27 @@ export async function updateUserRole(id: number, role: "admin" | "manager" | "ag
   if (!db) throw new Error("Database not available");
 
   await db.update(users).set({ role } as any).where(eq(users.id, id));
+}
+
+// ========== Invitations ==========
+
+export async function createInvitation(email: string, token: string, role: "manager" | "agent" | "viewer", expiresAt: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(invitations).values({ email, token, role, expiresAt } as any);
+}
+
+export async function getInvitationByToken(token: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.select().from(invitations).where(eq((invitations as any).token, token)).limit(1);
+  return result[0] || null;
+}
+
+export async function markInvitationAccepted(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(invitations).set({ acceptedAt: new Date() } as any).where(eq((invitations as any).id, id));
 }
 
 // ========== Dashboard / KPI ==========

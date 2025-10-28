@@ -9,6 +9,8 @@ import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
 import type {
+  AuthorizeRequest,
+  AuthorizeResponse,
   ExchangeTokenRequest,
   ExchangeTokenResponse,
   GetUserInfoResponse,
@@ -26,6 +28,7 @@ export type SessionPayload = {
   name: string;
 };
 
+const AUTHORIZE_PATH = `/webdev.v1.WebDevAuthPublicService/Authorize`;
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
@@ -47,6 +50,26 @@ class OAuthService {
     } catch {
       return state;
     }
+  }
+
+  async getAuthorizeUrl(
+    redirectUri: string,
+    state: string
+  ): Promise<string> {
+    const payload: AuthorizeRequest = {
+      redirectUri,
+      projectId: ENV.appId,
+      state,
+      responseType: "code",
+      scope: "openid profile email",
+    };
+
+    const { data } = await this.client.post<AuthorizeResponse>(
+      AUTHORIZE_PATH,
+      payload
+    );
+
+    return (data as AuthorizeResponse).redirectUrl;
   }
 
   async getTokenByCode(
@@ -117,6 +140,13 @@ class SDKServer {
     if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
     const first = Array.from(set)[0];
     return first ? first.toLowerCase() : null;
+  }
+
+  async getAuthorizeRedirectUrl(
+    redirectUri: string,
+    state: string
+  ): Promise<string> {
+    return this.oauthService.getAuthorizeUrl(redirectUri, state);
   }
 
   /**

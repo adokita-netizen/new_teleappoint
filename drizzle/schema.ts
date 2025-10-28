@@ -8,6 +8,7 @@ export type User = {
 	email: string | null;
 	loginMethod: string | null;
 	role: "admin" | "manager" | "agent" | "viewer";
+  passwordHash?: string | null;
 	createdAt?: Date;
 	updatedAt?: Date;
 };
@@ -37,5 +38,17 @@ export const projects: any = {};
 export const projectMembers: any = {};
 export const listsUpdated: any = {};
 export const campaignsUpdated: any = {};
+
+// Invitations placeholder
+export type Invite = {
+  id: number;
+  email: string;
+  token: string;
+  role: "manager" | "agent" | "viewer";
+  expiresAt: Date;
+  acceptedAt?: Date | null;
+  createdAt?: Date;
+};
+export const invitations: any = {};
 
 

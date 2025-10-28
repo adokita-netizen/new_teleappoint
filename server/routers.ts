@@ -43,6 +43,46 @@ export const appRouter = router({
       });
       return { success: true } as const;
     }),
+    // 管理者が招待を作成
+    invite: protectedProcedure
+      .input(z.object({ email: z.string().email(), role: z.enum(["manager", "agent", "viewer"]) }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+        }
+        const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7日
+        await db.createInvitation(input.email, token, input.role, expiresAt);
+        return { success: true, token } as const;
+      }),
+    // 招待を検証
+    verifyInvite: publicProcedure
+      .input(z.object({ token: z.string().min(8) }))
+      .query(async ({ input }) => {
+        const inv = await db.getInvitationByToken(input.token);
+        if (!inv) throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found" });
+        if (new Date(inv.expiresAt) < new Date()) throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation expired" });
+        if (inv.acceptedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation already used" });
+        return { email: inv.email, role: inv.role } as const;
+      }),
+    // 招待でユーザーを作成（初回パスワード設定）
+    acceptInvite: publicProcedure
+      .input(z.object({ token: z.string().min(8), name: z.string().min(1), password: z.string().min(4) }))
+      .mutation(async ({ input }) => {
+        const inv = await db.getInvitationByToken(input.token);
+        if (!inv) throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found" });
+        if (new Date(inv.expiresAt) < new Date()) throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation expired" });
+        if (inv.acceptedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation already used" });
+
+        // openId はメールをベースにローカルID化（簡易）
+        const openId = `local:${inv.email}`;
+        const passwordHash = `plain:${input.password}`; // 実運用はハッシュ化
+        await db.upsertUser({ openId, name: input.name, email: inv.email, role: inv.role, loginMethod: "local", lastSignedIn: new Date() } as any);
+        await db.updateUserRole((await db.getUserByOpenId(openId) as any)?.id, inv.role);
+        await db.updateUser((await db.getUserByOpenId(openId) as any)?.id, { passwordHash } as any);
+        await db.markInvitationAccepted(inv.id);
+        return { success: true } as const;
+      }),
   }),
 
   // ===== Leads =====

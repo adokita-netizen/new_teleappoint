@@ -9,6 +9,7 @@ import { createContext } from "./context";
 // 本番は静的配信だけを静的 import（Vite開発用は動的 import）
 import { serveStatic } from "./vite";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { sdk } from "./sdk";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -36,6 +37,24 @@ async function startLocalServer() {
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // セッションから user を解決する軽量ミドルウェア
+  app.use(async (req, _res, next) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      (req as any).user = user
+        ? { id: (user as any).id, role: (user as any).role || "viewer" }
+        : undefined;
+    } catch {
+      (req as any).user = undefined;
+    }
+    next();
+  });
+
+  // 認証状態の確認
+  app.get("/api/auth/me", (req, res) => {
+    res.json((req as any).user ?? null);
+  });
 
   registerOAuthRoutes(app);
 
@@ -69,6 +88,23 @@ async function startLocalServer() {
 const serverlessApp: Application = express();
 serverlessApp.use(express.json({ limit: "50mb" }));
 serverlessApp.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// セッション解決（Serverless）
+serverlessApp.use(async (req, _res, next) => {
+  try {
+    const user = await sdk.authenticateRequest(req as any);
+    (req as any).user = user
+      ? { id: (user as any).id, role: (user as any).role || "viewer" }
+      : undefined;
+  } catch {
+    (req as any).user = undefined;
+  }
+  next();
+});
+
+serverlessApp.get("/api/auth/me", (req, res) => {
+  res.json((req as any).user ?? null);
+});
 
 registerOAuthRoutes(serverlessApp);
 

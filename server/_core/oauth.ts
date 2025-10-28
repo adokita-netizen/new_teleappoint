@@ -3,6 +3,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import type { Request, Response } from "express";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const v = req.query[key];
@@ -10,6 +11,20 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Application) {
+  // OAuth 開始: 認可URLへリダイレクト
+  app.get("/api/oauth/login", async (req: Request, res: Response) => {
+    try {
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const redirectUri = `${origin}/api/oauth/callback`;
+      const state = Buffer.from(redirectUri).toString("base64");
+      const authorizeUrl = await sdk.getAuthorizeRedirectUrl(redirectUri, state);
+      return res.redirect(302, authorizeUrl);
+    } catch (error) {
+      console.error("[OAuth] Login redirect failed", error);
+      return res.status(500).json({ error: "OAuth login failed" });
+    }
+  });
+
   app.get("/api/oauth/callback", async (req: express.Request, res: express.Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
