@@ -5,22 +5,13 @@
       "src": "server/_core/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["server/**", "drizzle/**", "node_modules/**"]
+        "includeFiles": ["drizzle/**", "shared/**"]  // ← 必要なら。無ければ config ごと削除でも可
       }
     },
-    {
-      "src": "client/dist/**",
-      "use": "@vercel/static"
-    }
+    { "src": "dist/**", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server/_core/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "client/dist/$1"
-    }
+    { "src": "/api/(.*)", "dest": "server/_core/index.ts" },
+    { "src": "/(.*)", "dest": "dist/$1" }
   ]
 }
