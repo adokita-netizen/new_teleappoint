@@ -2,23 +2,25 @@
   "version": 2,
   "builds": [
     {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": { "outputDirectory": "dist/public" }
+      "src": "server/_core/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["server/**", "drizzle/**", "node_modules/**"]
+      }
     },
     {
-      "src": "api/trpc.ts",
-      "use": "@vercel/node"
+      "src": "client/dist/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/trpc/(.*)",
-      "dest": "/api/trpc.ts"
+      "src": "/api/(.*)",
+      "dest": "server/_core/index.ts"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/public/$1"
+      "dest": "client/dist/$1"
     }
   ]
 }
