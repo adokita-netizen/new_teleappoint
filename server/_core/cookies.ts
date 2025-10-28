@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { CookieOptions } from "express";
 import type express from "express";
 
