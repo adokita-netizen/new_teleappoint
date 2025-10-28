@@ -1,5 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "builds": [
+    { "src": "api/**", "use": "@vercel/node" },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/public",
+        "buildCommand": "pnpm build",
+        "installCommand": "pnpm install --no-frozen-lockfile"
+      }
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
