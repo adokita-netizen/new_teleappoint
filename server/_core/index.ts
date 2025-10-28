@@ -202,8 +202,10 @@ serverlessApp.use(
   })
 );
 
-// 本番は静的ファイルのみ
-serveStatic(serverlessApp);
+// 本番は静的ファイルのみ（Vercel の静的配信に任せる場合はスキップ）
+if (process.env.VERCEL !== "1") {
+  serveStatic(serverlessApp);
+}
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return (serverlessApp as any)(req, res);
