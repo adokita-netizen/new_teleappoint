@@ -4,7 +4,7 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "dist/public",
   "routes": [
-    { "src": "/api/(.*)", "dest": "server/_core/index.ts" },
+    { "src": "/api/(.*)", "dest": "api/index.ts" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "dist/public/index.html" }
   ]
