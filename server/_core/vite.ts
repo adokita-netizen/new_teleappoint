@@ -9,10 +9,7 @@ import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
 
-/**
- * 開発時: Vite を動的 import して組み込む
- * これで本番バンドルに vite が混ざらない
- */
+/** devのみ Vite を動的 import（本番バンドルから除外） */
 export async function setupVite(app: Application, server: Server) {
   const { createServer: createViteServer } = await import("vite");
   const cfgMod: any = await import("../../vite.config");
@@ -31,21 +28,18 @@ export async function setupVite(app: Application, server: Server) {
     appType: "custom",
   });
 
-  // vite.middlewares は connect ミドルウェア
   app.use(vite.middlewares as any);
 
   app.use("*", async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
     try {
       const clientTemplate = path.resolve(
-        // dev 実行時は ts の階層を基準に client/index.html を読む
         import.meta.dirname,
         "../..",
         "client",
         "index.html"
       );
 
-      // HMR のために都度読み込み
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
@@ -55,17 +49,14 @@ export async function setupVite(app: Application, server: Server) {
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      // 型は dev 専用のため any 許容
-      // @ts-expect-error
+      // @ts-expect-error vite型はdev専用
       vite.ssrFixStacktrace(e);
       next(e as Error);
     }
   });
 }
 
-/**
- * 本番: dist/public を配信（Serverless 実行時は dist/server からの相対）
- */
+/** 本番：dist/public を静的配信（Serverless実行は dist/server 起点） */
 export function serveStatic(app: Application) {
   const distPath =
     process.env.NODE_ENV === "development"
@@ -73,14 +64,11 @@ export function serveStatic(app: Application) {
       : path.resolve(import.meta.dirname, "..", "public"); // dist/server → dist/public
 
   if (!fs.existsSync(distPath)) {
-    console.error(
-      `Could not find the build directory: ${distPath}. Did you run "vite build"?`
-    );
+    console.error(`Could not find the build directory: ${distPath}. Did you run "vite build"?`);
   }
 
   app.use(express.static(distPath));
 
-  // SPA fallback
   app.use("*", (_req: Request, res: Response) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
