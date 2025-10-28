@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { Route, Router, Switch, useLocation } from "wouter";
+import { Link, Route, Router, Switch, useLocation } from "wouter";
 function SignupPage() {
   const [, setLocation] = useLocation();
   const [token, setToken] = React.useState("");
@@ -146,9 +146,18 @@ function HomePage() {
       .catch(() => setMe(null));
   }, []);
   return (
-    <div style={{ padding: 24 }}>
-      <h2>ダッシュボード</h2>
-      <p>ようこそ {me?.name ?? ""}</p>
+    <div>
+      <div className="nav">
+        <strong>Teleappoint</strong>
+        <Link href="/">ホーム</Link>
+        <Link href="/leads">顧客リスト</Link>
+        <span className="spacer" />
+        <span style={{ color: "#8a9ab5" }}>{me?.email ?? me?.name ?? ""}</span>
+      </div>
+      <div className="container">
+        <h2 className="section-title">ダッシュボード</h2>
+        <div className="card">ようこそ {me?.name ?? ""}</div>
+      </div>
     </div>
   );
 }
@@ -159,6 +168,7 @@ function App() {
       <Switch>
         <Route path="/login" component={LoginPage} />
         <Route path="/signup" component={SignupPage} />
+        <Route path="/leads" component={LeadsPage} />
         <Route>
           <RequireAuth>
             <HomePage />
@@ -171,5 +181,91 @@ function App() {
 
 const rootEl = document.getElementById("root")!;
 createRoot(rootEl).render(<App />);
+
+function LeadsPage() {
+  const [items, setItems] = React.useState<any[]>([]);
+  const [form, setForm] = React.useState({ name: "", company: "", phone: "", email: "", prefecture: "", industry: "", memo: "" });
+  const [error, setError] = React.useState<string | null>(null);
+
+  const load = async () => {
+    // 簡易: 既存の list API を流用（フィルタなし）
+    const res = await fetch(`/api/trpc/leads.list`);
+    const payload = await res.json();
+    const data = (payload as any)?.result?.data ?? [];
+    setItems(data);
+  };
+
+  React.useEffect(() => { load().catch(() => void 0); }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const input = { ...form };
+    const res = await fetch(`/api/trpc/leads.create`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ input }) });
+    if (res.ok) {
+      setForm({ name: "", company: "", phone: "", email: "", prefecture: "", industry: "", memo: "" });
+      await load();
+    } else {
+      const j = await res.json().catch(() => ({} as any));
+      setError(j?.error ?? "追加に失敗しました");
+    }
+  };
+
+  return (
+    <div>
+      <div className="nav">
+        <strong>Teleappoint</strong>
+        <Link href="/">ホーム</Link>
+        <Link href="/leads" className="active">顧客リスト</Link>
+        <span className="spacer" />
+        <a href="/api/auth/logout" className="btn secondary">Sign out</a>
+      </div>
+      <div className="container grid" style={{ gap: 16 }}>
+        <div className="card">
+          <h3 className="section-title">新規リード</h3>
+          <form onSubmit={submit} className="grid cols-2">
+            <label>氏名<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
+            <label>会社<input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></label>
+            <label>電話<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="例: 03-1234-5678" /></label>
+            <label>メール<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="name@company.jp" /></label>
+            <label>都道府県<input value={form.prefecture} onChange={(e) => setForm({ ...form, prefecture: e.target.value })} /></label>
+            <label>業種<input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} /></label>
+            <label className="grid" style={{ gridColumn: "1 / -1" }}>メモ<textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} /></label>
+            {error ? <div style={{ color: "#dc2626" }}>{error}</div> : null}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <button className="btn" type="submit">追加</button>
+            </div>
+          </form>
+        </div>
+
+        <div className="card">
+          <h3 className="section-title">リード一覧</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>氏名</th>
+                <th>会社</th>
+                <th>電話</th>
+                <th>メール</th>
+                <th>ステータス</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id}>
+                  <td>{it.name}</td>
+                  <td>{it.company}</td>
+                  <td>{it.phone}</td>
+                  <td>{it.email}</td>
+                  <td>{it.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
