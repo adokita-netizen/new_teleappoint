@@ -1,28 +1,35 @@
-import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
+import type { Request, Response } from "express";
 
-export type TrpcContext = {
-  req: CreateExpressContextOptions["req"];
-  res: CreateExpressContextOptions["res"];
-  user: User | null;
+export type UserLike = {
+  id: number;
+  role: "admin" | "manager" | "agent" | "viewer";
 };
 
-export async function createContext(
-  opts: CreateExpressContextOptions
-): Promise<TrpcContext> {
-  let user: User | null = null;
+export type Context = {
+  req: Request;
+  res: Response;
+  user: UserLike;
+};
 
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
-  }
+/**
+ * tRPC 用コンテキスト
+ * - ここでは DB スキーマを import しない（サイズ増＆パス崩れ防止）
+ * - 認証は最小限のダミー（あとで本実装に差し替え可）
+ */
+export async function createContext({
+  req,
+  res,
+}: {
+  req: Request;
+  res: Response;
+}): Promise<Context> {
+  // 本実装があるなら Cookie / Header から復元する
+  const user =
+    (req as any).user ??
+    ({
+      id: 0,
+      role: "viewer",
+    } as UserLike);
 
-  return {
-    req: opts.req,
-    res: opts.res,
-    user,
-  };
+  return { req, res, user };
 }
