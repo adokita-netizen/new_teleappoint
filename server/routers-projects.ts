@@ -34,7 +34,7 @@ export const projectsRouter = router({
         description: input.description,
         createdBy: ctx.user.id,
       });
-      return { success: true, projectId: result.insertId };
+      return { success: true, projectId: (result as any).insertId };
     }),
 
   // Get all projects (admin only)
@@ -311,7 +311,7 @@ export const projectListsRouter = router({
         createdBy: ctx.user.id,
       });
 
-      return { success: true, listId: result.insertId };
+      return { success: true, listId: (result as any).insertId };
     }),
 
   // Get lists for project
@@ -355,7 +355,7 @@ export const projectCampaignsRouter = router({
         createdBy: ctx.user.id,
       });
 
-      return { success: true, campaignId: result.insertId };
+      return { success: true, campaignId: (result as any).insertId };
     }),
 
   // Get campaigns for project

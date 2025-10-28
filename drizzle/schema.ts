@@ -14,7 +14,7 @@ export type User = {
 };
 
 // Insert types used by server/db.ts
-export type InsertUser = Partial<User> & { openId: string };
+export type InsertUser = Partial<User> & { openId: string; lastSignedIn?: Date };
 export type InsertLead = Record<string, unknown>;
 export type InsertCallLog = Record<string, unknown>;
 export type InsertAppointment = Record<string, unknown>;

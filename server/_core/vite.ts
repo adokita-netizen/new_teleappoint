@@ -66,6 +66,7 @@ export function serveStatic(app: Application) {
   app.use(express.static(distPath));
 
   app.use("*", (_req: Request, res: Response) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    // express typings conflict in some environments; cast to any for sendFile
+    (res as any).sendFile(path.resolve(distPath, "index.html"));
   });
 }

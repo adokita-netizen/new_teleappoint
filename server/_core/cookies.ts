@@ -3,8 +3,9 @@ import type express from "express";
 
 /** x-forwarded-proto 等を見て https か判定 */
 function isSecureRequest(req: express.Request) {
-  if (req.protocol === "https") return true;
-  const forwardedProto = req.headers["x-forwarded-proto"];
+  const proto = (req as any).protocol;
+  if (proto === "https") return true;
+  const forwardedProto = (req as any).headers?.["x-forwarded-proto"] as string | string[] | undefined;
   if (!forwardedProto) return false;
   const list = Array.isArray(forwardedProto) ? forwardedProto : forwardedProto.split(",");
   return list.some((p) => p.trim().toLowerCase() === "https");
@@ -23,5 +24,5 @@ export function getSessionCookieOptions(req: express.Request): CookieOptions {
 
 /** 必要ならクリア用のヘルパ */
 export function clearSessionCookie(res: express.Response, name: string, base: CookieOptions) {
-  res.clearCookie(name, { ...base, maxAge: -1 });
+  (res as any).clearCookie(name, { ...base, maxAge: -1 });
 }
