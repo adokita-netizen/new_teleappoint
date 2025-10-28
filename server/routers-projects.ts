@@ -137,6 +137,32 @@ export const projectsRouter = router({
       return { success: true };
     }),
 
+  // ===== Talk Script =====
+  getTalkScript: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const project = await dbProjects.getProjectById(input.projectId);
+      if (!project) throw new Error("Project not found");
+      const members = await dbProjects.getProjectMembers(input.projectId);
+      const isMember = members.some((m: any) => m.userId === ctx.user.id);
+      const isAdmin = ctx.user.role === "admin";
+      if (!isMember && !isAdmin) throw new Error("Access denied");
+      return { talkScript: (project as any).talkScript ?? "" } as const;
+    }),
+
+  setTalkScript: protectedProcedure
+    .input(z.object({ projectId: z.number(), talkScript: z.string().max(20000).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await dbProjects.getProjectById(input.projectId);
+      if (!project) throw new Error("Project not found");
+      const members = await dbProjects.getProjectMembers(input.projectId);
+      const isMember = members.some((m: any) => m.userId === ctx.user.id);
+      const isAdmin = ctx.user.role === "admin";
+      if (!isMember && !isAdmin) throw new Error("Access denied");
+      await dbProjects.updateProject(input.projectId, { talkScript: input.talkScript ?? "" });
+      return { success: true } as const;
+    }),
+
   // Delete project
   delete: adminProcedure
     .input(z.object({ projectId: z.number() }))

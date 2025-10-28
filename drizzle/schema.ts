@@ -35,7 +35,7 @@ export const operatorMetrics: any = {};
 
 // Projects-related placeholders
 export const projects: any = {};
-// project fields expected to include: id, name, description, status, createdAt, createdBy, calendarUrl
+// project fields expected to include: id, name, description, status, createdAt, createdBy, calendarUrl, talkScript
 export const projectMembers: any = {};
 export const listsUpdated: any = {};
 export const campaignsUpdated: any = {};

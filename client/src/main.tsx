@@ -184,31 +184,85 @@ createRoot(rootEl).render(<App />);
 
 function LeadsPage() {
   const [items, setItems] = React.useState<any[]>([]);
+  const [projects, setProjects] = React.useState<any[]>([]);
+  const [projectId, setProjectId] = React.useState<number | null>(null);
+  const [lists, setLists] = React.useState<any[]>([]);
+  const [listId, setListId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState({ name: "", company: "", phone: "", email: "", prefecture: "", industry: "", memo: "" });
   const [error, setError] = React.useState<string | null>(null);
 
-  const load = async () => {
-    // 簡易: 既存の list API を流用（フィルタなし）
-    const res = await fetch(`/api/trpc/leads.list`);
+  const loadProjects = async () => {
+    const res = await fetch(`/api/trpc/projects.getMyProjects`);
+    const payload = await res.json();
+    const data = (payload as any)?.result?.data ?? [];
+    setProjects(data);
+    if (data.length > 0) setProjectId((data[0] as any).id ?? null);
+  };
+
+  const loadLists = async (pid: number) => {
+    const res = await fetch(`/api/trpc/projectLists.getByProject?input=${encodeURIComponent(JSON.stringify({ projectId: pid }))}`);
+    const payload = await res.json();
+    const data = (payload as any)?.result?.data ?? [];
+    setLists(data);
+    setListId(data[0]?.id ?? null);
+  };
+
+  const loadLeads = async (lid: number | null) => {
+    const query = lid ? `?input=${encodeURIComponent(JSON.stringify({ listId: lid }))}` : "";
+    const res = await fetch(`/api/trpc/leads.list${query}`);
     const payload = await res.json();
     const data = (payload as any)?.result?.data ?? [];
     setItems(data);
   };
 
-  React.useEffect(() => { load().catch(() => void 0); }, []);
+  React.useEffect(() => { loadProjects().catch(() => void 0); }, []);
+  React.useEffect(() => {
+    if (projectId) loadLists(projectId).catch(() => void 0);
+  }, [projectId]);
+  React.useEffect(() => {
+    loadLeads(listId ?? null).catch(() => void 0);
+  }, [listId]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const input = { ...form };
+    const input = { ...form, listId: listId ?? undefined } as any;
     const res = await fetch(`/api/trpc/leads.create`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ input }) });
     if (res.ok) {
       setForm({ name: "", company: "", phone: "", email: "", prefecture: "", industry: "", memo: "" });
-      await load();
+      await loadLeads(listId ?? null);
     } else {
       const j = await res.json().catch(() => ({} as any));
       setError(j?.error ?? "追加に失敗しました");
     }
+  };
+
+  const [newListName, setNewListName] = React.useState("");
+  const [newListDesc, setNewListDesc] = React.useState("");
+  const createList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectId) return;
+    const input = { projectId, name: newListName, description: newListDesc };
+    const res = await fetch(`/api/trpc/projectLists.create`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ input }) });
+    if (res.ok) {
+      setNewListName("");
+      setNewListDesc("");
+      await loadLists(projectId);
+    }
+  };
+
+  const [talkScript, setTalkScript] = React.useState("");
+  const loadTalkScript = async (pid: number) => {
+    const res = await fetch(`/api/trpc/projects.getTalkScript?input=${encodeURIComponent(JSON.stringify({ projectId: pid }))}`);
+    const payload = await res.json();
+    const data = (payload as any)?.result?.data ?? { talkScript: "" };
+    setTalkScript(data.talkScript ?? "");
+  };
+  React.useEffect(() => { if (projectId) loadTalkScript(projectId).catch(() => void 0); }, [projectId]);
+  const saveTalkScript = async () => {
+    if (!projectId) return;
+    const input = { projectId, talkScript };
+    await fetch(`/api/trpc/projects.setTalkScript`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ input }) });
   };
 
   return (
@@ -221,6 +275,33 @@ function LeadsPage() {
         <a href="/api/auth/logout" className="btn secondary">Sign out</a>
       </div>
       <div className="container grid" style={{ gap: 16 }}>
+        <div className="card grid" style={{ gap: 12 }}>
+          <div className="grid cols-2">
+            <label>
+              プロジェクト
+              <select value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              リスト
+              <select value={listId ?? ''} onChange={(e) => setListId(e.target.value ? Number(e.target.value) : null)}>
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <form onSubmit={createList} className="grid cols-2">
+            <label>新規リスト名<input value={newListName} onChange={(e) => setNewListName(e.target.value)} /></label>
+            <label>説明<input value={newListDesc} onChange={(e) => setNewListDesc(e.target.value)} /></label>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <button className="btn secondary" type="submit">リストを追加</button>
+            </div>
+          </form>
+        </div>
         <div className="card">
           <h3 className="section-title">新規リード</h3>
           <form onSubmit={submit} className="grid cols-2">
@@ -236,6 +317,16 @@ function LeadsPage() {
               <button className="btn" type="submit">追加</button>
             </div>
           </form>
+        </div>
+
+        <div className="card">
+          <h3 className="section-title">トークスクリプト（プロジェクト共有）</h3>
+          <div className="grid">
+            <textarea value={talkScript} onChange={(e) => setTalkScript(e.target.value)} placeholder="架電時に話す想定の台本をここに記述" />
+            <div>
+              <button className="btn secondary" onClick={saveTalkScript}>保存</button>
+            </div>
+          </div>
         </div>
 
         <div className="card">
