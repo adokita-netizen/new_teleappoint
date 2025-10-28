@@ -12,6 +12,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "dist/server/index.mjs" },
-    { "src": "/(.*)", "dest": "dist/public/$1" }
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "dist/public/index.html" }
   ]
 }
