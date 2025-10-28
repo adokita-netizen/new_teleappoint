@@ -6,7 +6,8 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic } from "./vite"; // ← ここは静的配信だけを静的 import
+// 本番は静的配信だけを静的 import（Vite開発用は動的 import）
+import { serveStatic } from "./vite";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 function isPortAvailable(port: number): Promise<boolean> {

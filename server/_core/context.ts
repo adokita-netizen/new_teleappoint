@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type express from "express";
 
 export type UserLike = {
   id: number;
@@ -6,8 +6,8 @@ export type UserLike = {
 };
 
 export type Context = {
-  req: Request;
-  res: Response;
+  req: express.Request;
+  res: express.Response;
   user: UserLike;
 };
 
@@ -16,8 +16,8 @@ export async function createContext({
   req,
   res,
 }: {
-  req: Request;
-  res: Response;
+  req: express.Request;
+  res: express.Response;
 }): Promise<Context> {
   const user =
     (req as any).user ??

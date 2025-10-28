@@ -1,7 +1,8 @@
-import { type CookieOptions, type Request, type Response } from "express";
+import type { CookieOptions } from "express";
+import type express from "express";
 
 /** x-forwarded-proto 等を見て https か判定 */
-function isSecureRequest(req: Request) {
+function isSecureRequest(req: express.Request) {
   if (req.protocol === "https") return true;
   const forwardedProto = req.headers["x-forwarded-proto"];
   if (!forwardedProto) return false;
@@ -10,7 +11,7 @@ function isSecureRequest(req: Request) {
 }
 
 /** セッション Cookie の共通オプション（domain は付けない） */
-export function getSessionCookieOptions(req: Request): CookieOptions {
+export function getSessionCookieOptions(req: express.Request): CookieOptions {
   const secure = isSecureRequest(req);
   return {
     httpOnly: true,
@@ -21,6 +22,6 @@ export function getSessionCookieOptions(req: Request): CookieOptions {
 }
 
 /** 必要ならクリア用のヘルパ */
-export function clearSessionCookie(res: Response, name: string, base: CookieOptions) {
+export function clearSessionCookie(res: express.Response, name: string, base: CookieOptions) {
   res.clearCookie(name, { ...base, maxAge: -1 });
 }
