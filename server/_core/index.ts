@@ -84,6 +84,23 @@ async function startLocalServer() {
     }
   });
 
+  // 未ログインは /login へ（API と静的資産は除外）
+  app.use((req, res, next) => {
+    const path = req.path;
+    if (
+      path.startsWith("/api") ||
+      path.startsWith("/login") ||
+      path.startsWith("/api/oauth") ||
+      /\.(js|css|png|jpg|jpeg|gif|svg|ico|txt|map)$/i.test(path)
+    ) {
+      return next();
+    }
+    if (!(req as any).user) {
+      return res.redirect(302, "/login");
+    }
+    next();
+  });
+
   registerOAuthRoutes(app);
 
   app.use(
@@ -156,6 +173,23 @@ serverlessApp.post("/api/auth/login", async (req, res) => {
     console.error("/api/auth/login error", e);
     return res.status(500).json({ error: "Login failed" });
   }
+});
+
+// 未ログインは /login へ（API と静的資産は除外）
+serverlessApp.use((req, res, next) => {
+  const path = (req as any).path as string;
+  if (
+    path.startsWith("/api") ||
+    path.startsWith("/login") ||
+    path.startsWith("/api/oauth") ||
+    /\.(js|css|png|jpg|jpeg|gif|svg|ico|txt|map)$/i.test(path)
+  ) {
+    return next();
+  }
+  if (!(req as any).user) {
+    return (res as any).redirect(302, "/login");
+  }
+  next();
 });
 
 registerOAuthRoutes(serverlessApp);
