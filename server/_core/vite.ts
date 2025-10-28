@@ -10,14 +10,13 @@ import { nanoid } from "nanoid";
 import path from "path";
 
 /**
- * 開発時だけ Vite を動的 import して組み込む
- * これにより本番バンドルから vite / vite.config を完全に排除できる
+ * 開発時: Vite を動的 import して組み込む
+ * これで本番バンドルに vite が混ざらない
  */
 export async function setupVite(app: Application, server: Server) {
   const { createServer: createViteServer } = await import("vite");
-  // vite.config は default / named どちらでも拾えるように
-  const viteConfigMod: any = await import("../../vite.config");
-  const viteConfig = viteConfigMod.default ?? viteConfigMod;
+  const cfgMod: any = await import("../../vite.config");
+  const viteConfig = cfgMod.default ?? cfgMod;
 
   const serverOptions = {
     middlewareMode: true as const,
@@ -32,21 +31,21 @@ export async function setupVite(app: Application, server: Server) {
     appType: "custom",
   });
 
+  // vite.middlewares は connect ミドルウェア
   app.use(vite.middlewares as any);
 
   app.use("*", async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
-
     try {
       const clientTemplate = path.resolve(
-        // dev 時は src 側を参照
+        // dev 実行時は ts の階層を基準に client/index.html を読む
         import.meta.dirname,
         "../..",
         "client",
         "index.html"
       );
 
-      // index.html を都度読み込み（HMR のため）
+      // HMR のために都度読み込み
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
@@ -56,7 +55,8 @@ export async function setupVite(app: Application, server: Server) {
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      // @ts-expect-error: vite 型は dev 専用
+      // 型は dev 専用のため any 許容
+      // @ts-expect-error
       vite.ssrFixStacktrace(e);
       next(e as Error);
     }
@@ -64,14 +64,13 @@ export async function setupVite(app: Application, server: Server) {
 }
 
 /**
- * 本番は dist/public 配下のみを配信（vite には一切触れない）
- * dist/server/index.mjs から実行されるため、public は 1 つ上のディレクトリ
+ * 本番: dist/public を配信（Serverless 実行時は dist/server からの相対）
  */
 export function serveStatic(app: Application) {
   const distPath =
     process.env.NODE_ENV === "development"
       ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "..", "public");
+      : path.resolve(import.meta.dirname, "..", "public"); // dist/server → dist/public
 
   if (!fs.existsSync(distPath)) {
     console.error(
@@ -81,7 +80,7 @@ export function serveStatic(app: Application) {
 
   app.use(express.static(distPath));
 
-  // SPA: 既存ファイルが無ければ index.html を返す
+  // SPA fallback
   app.use("*", (_req: Request, res: Response) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
