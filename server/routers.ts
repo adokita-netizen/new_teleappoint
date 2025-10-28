@@ -92,6 +92,36 @@ export const appRouter = router({
 
   // ===== Leads =====
   leads: router({
+    create: managerProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "必須"),
+          company: z.string().optional(),
+          phone: z
+            .string()
+            .min(7)
+            .max(20)
+            .regex(/^[0-9+\-()\s]+$/, "電話番号の形式" )
+            .optional(),
+          email: z.string().email().optional(),
+          prefecture: z.string().optional(),
+          industry: z.string().optional(),
+          memo: z.string().optional(),
+          listId: z.number().optional(),
+          campaignId: z.number().optional(),
+        })
+        .refine((v) => !!v.phone || !!v.email, {
+          message: "電話またはメールのいずれかは必須",
+          path: ["phone"],
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.createLead({
+          ...input,
+          status: "unreached",
+        } as any);
+        return { success: true } as const;
+      }),
     getNext: agentProcedure.query(async ({ ctx }) => {
       const lead = await db.getNextLead(ctx.user.id);
       return lead ?? null;
@@ -132,6 +162,18 @@ export const appRouter = router({
       .input(
         z.object({
           id: z.number(),
+          name: z.string().optional(),
+          company: z.string().optional(),
+          phone: z
+            .string()
+            .min(7)
+            .max(20)
+            .regex(/^[0-9+\-()\s]+$/)
+            .optional(),
+          email: z.string().email().optional(),
+          prefecture: z.string().optional(),
+          industry: z.string().optional(),
+          memo: z.string().optional(),
           status: z
             .enum([
               "unreached",
@@ -145,7 +187,6 @@ export const appRouter = router({
               "lost",
             ])
             .optional(),
-          memo: z.string().optional(),
           nextActionAt: z.date().optional(),
           ownerId: z.number().optional(),
         })
