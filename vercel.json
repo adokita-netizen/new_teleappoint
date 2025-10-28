@@ -1,17 +1,11 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "server/_core/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["drizzle/**", "shared/**"]  // ← 必要なら。無ければ config ごと削除でも可
-      }
-    },
-    { "src": "dist/**", "use": "@vercel/static" }
+    { "src": "dist/server/index.mjs", "use": "@vercel/node" },
+    { "src": "dist/public/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "server/_core/index.ts" },
-    { "src": "/(.*)", "dest": "dist/$1" }
+    { "src": "/api/(.*)", "dest": "dist/server/index.mjs" },
+    { "src": "/(.*)", "dest": "dist/public/$1" }
   ]
 }
