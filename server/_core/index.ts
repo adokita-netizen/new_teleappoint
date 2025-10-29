@@ -202,10 +202,9 @@ serverlessApp.use(
   })
 );
 
-// 本番は静的ファイルのみ（Vercel の静的配信に任せる場合はスキップ）
-if (process.env.VERCEL !== "1") {
-  serveStatic(serverlessApp);
-}
+// 本番/開発を問わず、サーバレス側でも SPA を返せるようにしておく
+// （Vercel の静的配信が優先される構成でも、誤って本関数に到達した場合のフォールバックになる）
+serveStatic(serverlessApp);
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return (serverlessApp as any)(req, res);
